@@ -989,3 +989,994 @@
       }
 
       if (pOutline > 0.45) {
+              const sp = Math.min(1, (pOutline - 0.45) / 0.55);
+        const bodyTop = cy + headRy * 0.86 + (style === 'caricature' ? 14 : 22);
+        const spread = style === 'caricature' ? 0.92 : 1.18;
+        ctx.beginPath();
+        ctx.moveTo(cx - 24, bodyTop - 6);
+        ctx.quadraticCurveTo(cx - headRx * (spread - 0.2) * sp, bodyTop + 6, cx - headRx * spread * sp, bodyTop + 120 * sp);
+        ctx.moveTo(cx + 24, bodyTop - 6);
+        ctx.quadraticCurveTo(cx + headRx * (spread - 0.2) * sp, bodyTop + 6, cx + headRx * spread * sp, bodyTop + 120 * sp);
+        ctx.stroke();
+      }
+
+      if (pOutline > 0.6) {
+        ctx.globalAlpha = Math.min(1, (pOutline - 0.6) / 0.4);
+        this.traceFrontHair(ctx, cx, cy, headRx, headRy, traits.hairStyle);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    drawDetailsPhase(ctx, cx, cy, headRx, headRy, traits, style, pDetail, pColor, liveImg) {
+      if (liveImg && pColor > 0.45) return;
+      ctx.save();
+      const isMono = style === 'sketch' || style === 'realistic';
+      const isAnime = style === 'anime';
+      const isCaricature = style === 'caricature';
+      const isRealistic = style === 'realistic';
+
+      const eyeOffsetX = headRx * (isCaricature ? 0.34 : 0.36);
+      const eyeY = cy + (isCaricature ? -6 : -2);
+      const eyeW = isAnime ? 20 : isCaricature ? 19 : isRealistic ? 13 : 14;
+      const eyeH = isAnime ? 22 : isCaricature ? 18 : isRealistic ? 9 : 12;
+
+      if (pDetail > 0.05) {
+        const ep = Math.min(1, pDetail / 0.45);
+        ctx.globalAlpha = ep;
+        for (const dir of [-1, 1]) {
+          const ex = cx + dir * eyeOffsetX;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY, eyeW, eyeH * 0.86, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = isMono ? '#2c241d' : traits.eyeColor;
+          ctx.beginPath();
+          ctx.ellipse(ex, eyeY + 1, eyeW * 0.6, eyeH * 0.72, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#140e0b';
+          ctx.beginPath();
+          ctx.arc(ex, eyeY + 2, eyeW * 0.28, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(ex - eyeW * 0.24, eyeY - eyeH * 0.24, isAnime || isCaricature ? 5 : 2.8, 0, Math.PI * 2);
+          ctx.fill();
+          if (isAnime) {
+            ctx.beginPath();
+            ctx.arc(ex + eyeW * 0.22, eyeY + eyeH * 0.22, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.strokeStyle = '#1c130e';
+          ctx.lineWidth = isAnime || isCaricature ? 3.8 : isRealistic ? 2 : 2.5;
+          ctx.beginPath();
+          ctx.arc(ex, eyeY + 2, eyeW * 1.02, Math.PI * 1.12, Math.PI * 1.88);
+          ctx.stroke();
+
+          // Eyebrow (expressive arched in caricature!)
+          ctx.strokeStyle = isMono ? '#362c22' : traits.hairMain;
+          ctx.lineWidth = isCaricature ? 4.5 : 3;
+          ctx.beginPath();
+          const browLift = isCaricature && dir === 1 ? 6 : 0;
+          ctx.moveTo(ex - eyeW * 0.85, eyeY - eyeH - 9 - browLift);
+          ctx.quadraticCurveTo(ex, eyeY - eyeH - 18 - browLift, ex + eyeW * 0.85, eyeY - eyeH - 8);
+          ctx.stroke();
+        }
+      }
+
+      if (pDetail > 0.35) {
+        const mp = Math.min(1, (pDetail - 0.35) / 0.35);
+        ctx.globalAlpha = mp;
+
+        // Nose (playful round button nose in caricature; sculpted bridge in realistic)
+        ctx.strokeStyle = isMono ? '#4d4135' : '#8a523c';
+        ctx.lineWidth = isCaricature ? 3 : 2;
+        ctx.beginPath();
+        if (isCaricature) {
+          ctx.arc(cx, cy + 20, 8, Math.PI * 0.15, Math.PI * 0.85);
+        } else if (isAnime) {
+          ctx.arc(cx, cy + 20, 3, 0, Math.PI);
+        } else if (isRealistic) {
+          ctx.moveTo(cx - 2, cy + 2);
+          ctx.lineTo(cx - 5, cy + 24);
+          ctx.quadraticCurveTo(cx, cy + 29, cx + 6, cy + 24);
+        } else {
+          ctx.moveTo(cx, cy + 6);
+          ctx.quadraticCurveTo(cx - 4, cy + 24, cx + 6, cy + 26);
+        }
+        ctx.stroke();
+
+        // Mouth (big comic grin in caricature, dignified gentle smile in realistic)
+        const my = cy + (isCaricature ? 44 : 48);
+        ctx.strokeStyle = isMono ? '#362c22' : '#963b32';
+        ctx.lineWidth = isCaricature ? 3.4 : 2.5;
+        ctx.beginPath();
+        if (isCaricature || traits.mouth === 'grin') {
+          const mw = isCaricature ? 32 : 22;
+          ctx.arc(cx, my - 6, mw, 0.12, Math.PI - 0.12);
+          ctx.closePath();
+          ctx.fillStyle = isMono ? '#ece5d9' : '#fff8f2';
+          ctx.fill();
+          ctx.stroke();
+        } else if (traits.mouth === 'cat' && isAnime) {
+          ctx.moveTo(cx - 16, my);
+          ctx.quadraticCurveTo(cx - 8, my + 10, cx, my + 2);
+          ctx.quadraticCurveTo(cx + 8, my + 10, cx + 16, my);
+          ctx.stroke();
+        } else {
+          ctx.moveTo(cx - 18, my);
+          ctx.quadraticCurveTo(cx, my + (isRealistic ? 8 : 13), cx + 18, my);
+          ctx.stroke();
+        }
+      }
+
+      if (pDetail > 0.65) {
+        const ap = Math.min(1, (pDetail - 0.65) / 0.35);
+        ctx.globalAlpha = ap;
+        this.drawAccessory(ctx, cx, cy, headRx, headRy, eyeOffsetX, eyeY, traits, isMono);
+      }
+
+      ctx.restore();
+    }
+
+    drawAccessory(ctx, cx, cy, headRx, headRy, eyeOffsetX, eyeY, traits, isMono) {
+      const acc = traits.accessory;
+      if (acc === 'glasses' || acc === 'roundGlasses') {
+        ctx.strokeStyle = isMono ? '#2b241d' : '#3a2415';
+        ctx.lineWidth = 3;
+        for (const dir of [-1, 1]) {
+          const ex = cx + dir * eyeOffsetX;
+          ctx.beginPath();
+          if (acc === 'roundGlasses') {
+            ctx.arc(ex, eyeY, 24, 0, Math.PI * 2);
+          } else {
+            ctx.roundRect(ex - 25, eyeY - 17, 50, 34, 8);
+          }
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.moveTo(cx - eyeOffsetX + 24, eyeY);
+        ctx.lineTo(cx + eyeOffsetX - 24, eyeY);
+        ctx.stroke();
+      } else if (acc === 'beret') {
+        ctx.fillStyle = isMono ? '#4d4338' : '#a8332a';
+        ctx.strokeStyle = '#24150e';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(cx + 8, cy - headRy + 4, headRx * 0.92, 34, -0.14, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx + 12, cy - headRy - 28);
+        ctx.lineTo(cx + 18, cy - headRy - 40);
+        ctx.stroke();
+      } else if (acc === 'crown') {
+        ctx.fillStyle = isMono ? '#9e8f7b' : '#f7c948';
+        ctx.strokeStyle = '#754d0c';
+        ctx.lineWidth = 2.4;
+        const topY = cy - headRy - 6;
+        ctx.beginPath();
+        ctx.moveTo(cx - 34, topY + 6);
+        ctx.lineTo(cx - 40, topY - 26);
+        ctx.lineTo(cx - 16, topY - 8);
+        ctx.lineTo(cx, topY - 34);
+        ctx.lineTo(cx + 16, topY - 8);
+        ctx.lineTo(cx + 40, topY - 26);
+        ctx.lineTo(cx + 34, topY + 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (acc === 'bow') {
+        ctx.fillStyle = isMono ? '#786b5e' : '#e45c7a';
+        const bx = cx + headRx * 0.62;
+        const by = cy - headRy * 0.68;
+        ctx.beginPath();
+        ctx.ellipse(bx - 16, by, 18, 11, -0.35, 0, Math.PI * 2);
+        ctx.ellipse(bx + 16, by, 18, 11, 0.35, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(bx, by, 7, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (acc === 'headphones') {
+        ctx.strokeStyle = isMono ? '#3d352d' : '#2e4057';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.arc(cx, cy - 6, headRx + 14, Math.PI * 1.05, Math.PI * 1.95);
+        ctx.stroke();
+        ctx.fillStyle = isMono ? '#5c5246' : '#e6a938';
+        ctx.beginPath();
+        ctx.roundRect(cx - headRx - 20, cy - 16, 16, 46, 8);
+        ctx.roundRect(cx + headRx + 4, cy - 16, 16, 46, 8);
+        ctx.fill();
+      } else if (acc === 'earrings') {
+        ctx.fillStyle = isMono ? '#776a5b' : '#f2c14e';
+        ctx.beginPath();
+        ctx.arc(cx - headRx + 2, cy + 32, 6, 0, Math.PI * 2);
+        ctx.arc(cx + headRx - 2, cy + 32, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    traceBackHair(ctx, cx, cy, headRx, headRy, hairStyle) {
+      ctx.beginPath();
+      if (hairStyle === 'long') {
+        ctx.roundRect(cx - headRx - 22, cy - headRy * 0.55, (headRx + 22) * 2, headRy * 2.25, 58);
+      } else if (hairStyle === 'twintails') {
+        ctx.ellipse(cx - headRx - 26, cy + 48, 30, 86, 0.16, 0, Math.PI * 2);
+        ctx.ellipse(cx + headRx + 26, cy + 48, 30, 86, -0.16, 0, Math.PI * 2);
+      } else if (hairStyle === 'bun') {
+        ctx.arc(cx, cy - headRy - 26, 36, 0, Math.PI * 2);
+        ctx.arc(cx, cy - 8, headRx + 10, Math.PI, 0);
+      } else if (hairStyle === 'curly') {
+        for (let a = 0; a < Math.PI * 2; a += 0.52) {
+          ctx.moveTo(cx + Math.cos(a) * (headRx + 14), cy - 8 + Math.sin(a) * (headRy + 12));
+          ctx.arc(cx + Math.cos(a) * (headRx + 8), cy - 8 + Math.sin(a) * (headRy + 6), 28, 0, Math.PI * 2);
+        }
+      } else {
+        ctx.ellipse(cx, cy - 12, headRx + 14, headRy + 14, 0, Math.PI * 0.9, Math.PI * 2.1);
+      }
+    }
+
+    traceFrontHair(ctx, cx, cy, headRx, headRy, hairStyle) {
+      ctx.beginPath();
+      if (hairStyle === 'spiky') {
+        ctx.moveTo(cx - headRx - 6, cy - 6);
+        ctx.quadraticCurveTo(cx - headRx, cy - headRy - 24, cx - headRx * 0.35, cy - headRy - 18);
+        ctx.lineTo(cx - 12, cy - headRy - 34);
+        ctx.lineTo(cx + 12, cy - headRy - 16);
+        ctx.lineTo(cx + 42, cy - headRy - 30);
+        ctx.quadraticCurveTo(cx + headRx + 6, cy - headRy - 14, cx + headRx + 6, cy - 6);
+        ctx.lineTo(cx + headRx * 0.65, cy - 34);
+        ctx.lineTo(cx + 22, cy - 18);
+        ctx.lineTo(cx, cy - 42);
+        ctx.lineTo(cx - 26, cy - 16);
+        ctx.lineTo(cx - headRx * 0.68, cy - 34);
+        ctx.closePath();
+      } else {
+        ctx.moveTo(cx - headRx - 6, cy + 4);
+        ctx.bezierCurveTo(cx - headRx - 10, cy - headRy - 28, cx + headRx + 10, cy - headRy - 28, cx + headRx + 6, cy + 4);
+        ctx.quadraticCurveTo(cx + headRx * 0.52, cy - headRy * 0.42, cx + 14, cy - headRy * 0.28);
+        ctx.quadraticCurveTo(cx - 14, cy - headRy * 0.48, cx - headRx * 0.56, cy - headRy * 0.24);
+        ctx.closePath();
+      }
+    }
+
+    drawStyleMediumOverlay(ctx, w, h, cx, cy, headRx, headRy, traits, style, pColor) {
+      const rand = seededRandom(traits.seed ^ 0x9e3779b9);
+      ctx.save();
+
+      if (style === 'sketch') {
+        // Energetic ink/graphite cross-hatching strokes
+        const totalStrokes = Math.floor(95 * pColor);
+        ctx.strokeStyle = 'rgba(42, 36, 30, 0.24)';
+        ctx.lineWidth = 1.25;
+        for (let i = 0; i < totalStrokes; i++) {
+          const sx = 24 + rand() * (w - 48);
+          const sy = 34 + rand() * (h - 104);
+          const len = 18 + rand() * 36;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + len, sy - len * 0.72);
+          ctx.stroke();
+        }
+      } else if (style === 'realistic') {
+        // Fine Vietnamese Truyền thần charcoal shading + warm studio vignette
+        const totalShades = Math.floor(70 * pColor);
+        ctx.strokeStyle = 'rgba(58, 42, 28, 0.14)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < totalShades; i++) {
+          const sx = 26 + rand() * (w - 52);
+          const sy = 36 + rand() * (h - 100);
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + 14, sy + 10);
+          ctx.stroke();
+        }
+        const vig = ctx.createRadialGradient(w / 2, h * 0.44, 110, w / 2, h / 2, w * 0.74);
+        vig.addColorStop(0, 'rgba(42, 28, 16, 0)');
+        vig.addColorStop(1, `rgba(42, 28, 16, ${0.34 * pColor})`);
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, w, h);
+      } else if (style === 'oil') {
+        // Textured impasto brush dabs
+        const totalDabs = Math.floor(95 * pColor);
+        const palette = [traits.bgStart, traits.bgEnd, traits.shirtColor, '#f7d070', '#ffffff', traits.hairHi];
+        for (let i = 0; i < totalDabs; i++) {
+          const x = 18 + rand() * (w - 36);
+          const y = 18 + rand() * (h - 60);
+          const dist = Math.hypot((x - cx) / headRx, (y - cy) / headRy);
+          if (dist < 0.78) continue;
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate((rand() - 0.5) * 1.1);
+          ctx.fillStyle = palette[Math.floor(rand() * palette.length)];
+          ctx.globalAlpha = 0.3 + rand() * 0.25;
+          ctx.beginPath();
+          ctx.roundRect(-14, -4, 28, 9, 4);
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (style === 'anime') {
+        // Glowing anime sparkle stars
+        const stars = Math.floor(15 * pColor);
+        for (let i = 0; i < stars; i++) {
+          const sx = 28 + rand() * (w - 56);
+          const sy = 28 + rand() * (h - 100);
+          if (Math.hypot(sx - cx, sy - cy) < headRx * 0.95) continue;
+          this.drawFourPointStar(ctx, sx, sy, 6 + rand() * 8, i % 2 === 0 ? '#fff7c2' : '#7dd3fc');
+        }
+      } else if (style === 'caricature') {
+        // Playful comic pop dots & exclamation sparks
+        const items = Math.floor(11 * pColor);
+        ctx.font = '800 20px "Baloo 2", sans-serif';
+        ctx.textAlign = 'center';
+        const symbols = ['★', '✦', '!', '♪'];
+        const colors = ['#e63946', '#f4a261', '#2a9d8f', '#e9c46a'];
+        for (let i = 0; i < items; i++) {
+          const sx = 32 + rand() * (w - 64);
+          const sy = 36 + rand() * (h - 120);
+          if (Math.hypot(sx - cx, sy - cy) < headRx * 1.06) continue;
+          ctx.globalAlpha = 0.78;
+          ctx.fillStyle = colors[i % colors.length];
+          ctx.fillText(symbols[i % symbols.length], sx, sy);
+        }
+      }
+
+      ctx.restore();
+    }
+
+    drawFourPointStar(ctx, x, y, r, color) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.88;
+      ctx.beginPath();
+      ctx.moveTo(x, y - r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.quadraticCurveTo(x, y, x, y + r);
+      ctx.quadraticCurveTo(x, y, x - r, y);
+      ctx.quadraticCurveTo(x, y, x, y - r);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    drawFinishingPhase(ctx, w, h, job, pFrame) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, pFrame * 1.3);
+
+      ctx.strokeStyle = job.frame === 'royal' ? '#d99a1e' : job.frame === 'gold' ? '#c98e26' : '#8c5c34';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(12, 12, w - 24, h - 24);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(18, 18, w - 36, h - 36);
+
+      // Cinnabar red artist seal stamp "Ông Ba"
+      const sx = w - 62;
+      const sy = h - 78;
+      ctx.fillStyle = '#c92f24';
+      ctx.beginPath();
+      ctx.roundRect(sx, sy, 36, 52, 5);
+      ctx.fill();
+      ctx.strokeStyle = '#ffdfd9';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(sx + 3, sy + 3, 30, 46);
+      ctx.fillStyle = '#fff5f0';
+      ctx.font = '800 12px "Be Vietnam Pro", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ÔNG', sx + 18, sy + 22);
+      ctx.fillText('BA', sx + 18, sy + 40);
+
+      // Nameplate at bottom left
+      const styleInfo = ART_STYLES[job.style] || ART_STYLES.caricature;
+      ctx.fillStyle = 'rgba(38, 22, 12, 0.82)';
+      ctx.beginPath();
+      ctx.roundRect(24, h - 62, w - 98, 36, 8);
+      ctx.fill();
+      ctx.fillStyle = '#fff7e8';
+      ctx.font = '700 14px "Be Vietnam Pro", sans-serif';
+      ctx.textAlign = 'left';
+      const label = `${job.username} · ${styleInfo.label}`;
+      ctx.fillText(label.slice(0, 30), 34, h - 39);
+
+      ctx.restore();
+    }
+
+    drawActiveBrushTip(ctx, bx, by, style, traits) {
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(-0.6);
+
+      ctx.fillStyle = style === 'sketch' || style === 'realistic' ? '#3a352f' : traits.shirtColor;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#d9a15b';
+      ctx.beginPath();
+      ctx.moveTo(4, -3);
+      ctx.lineTo(24, -7);
+      ctx.lineTo(24, 7);
+      ctx.lineTo(4, 3);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#75401d';
+      ctx.fillRect(24, -6, 36, 12);
+      ctx.restore();
+    }
+
+    captureSnapshot(job) {
+      if (!this.canvas || !this.ctx) return `portrait://${job.id}`;
+      this.renderPortrait(job, 1, 0);
+      try {
+        return this.canvas.toDataURL('image/png');
+      } catch (_err) {
+        return `portrait://${job.id}`;
+      }
+    }
+  }
+
+  /* =========================================================================
+     5. ÔNG BA PAINTER CHARACTER CANVAS RENDERER
+     ========================================================================= */
+  class ArtistRenderer {
+    constructor(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas ? canvas.getContext('2d') : null;
+      this.waveUntil = 0;
+    }
+
+    triggerWave() {
+      this.waveUntil = performance.now() + 2200;
+    }
+
+    render(timeSec, state) {
+      const ctx = this.ctx;
+      if (!ctx) return;
+      const w = this.canvas.width;
+      const h = this.canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const isDrawing = state === 'drawing';
+      const isCelebrating = state === 'celebrating';
+      const isWaving = performance.now() < this.waveUntil;
+
+      const bob = isDrawing
+        ? Math.sin(timeSec * 4.2) * 2.5
+        : isCelebrating
+          ? Math.abs(Math.sin(timeSec * 8)) * -6
+          : Math.sin(timeSec * 1.8) * 1.6;
+
+      // Full-body standing figure centered slightly left so right painting arm reaches toward the center easel
+      const cx = w * 0.44;
+      const floorY = h - 14;
+      const hipY = floorY - 82 + bob * 0.3;
+      const torsoTopY = hipY - 94 + bob * 0.7;
+      const headY = torsoTopY - 40 + bob;
+
+      ctx.save();
+
+      // 1. Floor shadow directly under standing shoes
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.36)';
+      ctx.beginPath();
+      ctx.ellipse(cx, floorY, 54, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Standing Legs & Trousers (Full-body!)
+      const legGap = 15;
+      ctx.fillStyle = '#3b2c22';
+      // Left leg
+      ctx.beginPath();
+      ctx.roundRect(cx - legGap - 11, hipY - 4, 22, floorY - hipY - 6, 8);
+      // Right leg (slightly stepped forward toward easel)
+      ctx.roundRect(cx + legGap - 9, hipY - 4, 22, floorY - hipY - 6, 8);
+      ctx.fill();
+
+      // Pant cuffs highlight
+      ctx.strokeStyle = '#5a4334';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - legGap - 10, floorY - 14);
+      ctx.lineTo(cx - legGap + 10, floorY - 14);
+      ctx.moveTo(cx + legGap - 8, floorY - 14);
+      ctx.lineTo(cx + legGap + 12, floorY - 14);
+      ctx.stroke();
+
+      // 3. Standing Shoes firmly on studio floor
+      ctx.fillStyle = '#5c2e14';
+      ctx.beginPath();
+      ctx.ellipse(cx - legGap - 2, floorY - 5, 17, 9, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + legGap + 6, floorY - 5, 18, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#8b4a24';
+      ctx.beginPath();
+      ctx.ellipse(cx - legGap - 4, floorY - 7, 10, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx + legGap + 8, floorY - 7, 11, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 4. Torso (Cream Painter Shirt + Paint-Smudged Apron)
+      ctx.fillStyle = '#f2e6cf';
+      ctx.beginPath();
+      ctx.roundRect(cx - 38, torsoTopY, 76, 98, 24);
+      ctx.fill();
+
+      // Apron covering torso down past hips
+      ctx.fillStyle = '#734b2a';
+      ctx.beginPath();
+      ctx.roundRect(cx - 31, torsoTopY + 18, 62, 102, 14);
+      ctx.fill();
+
+      // Apron straps & waist tie
+      ctx.strokeStyle = '#9c6c41';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 20, torsoTopY + 18);
+      ctx.lineTo(cx - 16, torsoTopY);
+      ctx.moveTo(cx + 20, torsoTopY + 18);
+      ctx.lineTo(cx + 16, torsoTopY);
+      ctx.moveTo(cx - 32, hipY - 10);
+      ctx.lineTo(cx + 32, hipY - 10);
+      ctx.stroke();
+
+      // Apron pocket & colorful paint smudges
+      ctx.fillStyle = '#5f3b1e';
+      ctx.beginPath();
+      ctx.roundRect(cx - 16, torsoTopY + 62, 32, 24, 6);
+      ctx.fill();
+      const smudges = [
+        { x: -14, y: 40, c: '#e84c3d' },
+        { x: 12, y: 50, c: '#f4c542' },
+        { x: -6, y: 98, c: '#48a978' },
+        { x: 16, y: 34, c: '#4c8ed9' }
+      ];
+      for (const s of smudges) {
+        ctx.fillStyle = s.c;
+        ctx.beginPath();
+        ctx.ellipse(cx + s.x, torsoTopY + s.y, 6.5, 3.8, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. Left Arm holding Wooden Paint Palette (on left side)
+      const palX = cx - 48;
+      const palY = torsoTopY + 56 + Math.sin(timeSec * 2.5) * 2.5;
+      ctx.strokeStyle = '#f2e6cf';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx - 32, torsoTopY + 22);
+      ctx.quadraticCurveTo(cx - 50, torsoTopY + 42, palX + 6, palY + 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#c88d50';
+      ctx.strokeStyle = '#6d411c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(palX, palY, 24, 18, -0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Thumb hole
+      ctx.fillStyle = '#3a2212';
+      ctx.beginPath();
+      ctx.arc(palX + 10, palY + 6, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      // 4 bright paint dabs on palette
+      const dots = ['#e84c3d', '#f5c542', '#3f88d6', '#46b078'];
+      dots.forEach((c, idx) => {
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.arc(palX - 11 + idx * 6.5, palY - 6 + (idx % 2) * 7, 3.8, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 6. Neck & Head (Grandpa Painter Ông Ba with round glasses, white beard & burgundy beret)
+      ctx.fillStyle = '#ecc29e';
+      ctx.fillRect(cx - 11, torsoTopY - 12, 22, 18);
+
+      // Ears
+      ctx.beginPath();
+      ctx.arc(cx - 34, headY + 2, 8, 0, Math.PI * 2);
+      ctx.arc(cx + 34, headY + 2, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = '#f4cca8';
+      ctx.beginPath();
+      ctx.ellipse(cx, headY, 34, 38, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Warm rosy cheeks
+      ctx.fillStyle = 'rgba(235, 118, 104, 0.35)';
+      ctx.beginPath();
+      ctx.arc(cx - 18, headY + 9, 7, 0, Math.PI * 2);
+      ctx.arc(cx + 18, headY + 9, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White side hair, beard & mustache
+      ctx.fillStyle = '#f6f2eb';
+      ctx.beginPath();
+      ctx.arc(cx - 31, headY - 8, 9, 0, Math.PI * 2);
+      ctx.arc(cx + 31, headY - 8, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx - 18, headY + 22);
+      ctx.quadraticCurveTo(cx, headY + 48, cx + 18, headY + 22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx - 10, headY + 15, 13, 6.5, -0.18, 0, Math.PI * 2);
+      ctx.ellipse(cx + 10, headY + 15, 13, 6.5, 0.18, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Smile
+      ctx.strokeStyle = '#7a3b2c';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(cx, headY + 19, 8, 0.15, Math.PI - 0.15);
+      ctx.stroke();
+
+      // Eyes (blinking) & White eyebrows
+      const isBlink = Math.sin(timeSec * 1.55) > 0.96;
+      for (const dir of [-1, 1]) {
+        const ex = cx + dir * 13;
+        const ey = headY - 2;
+        ctx.strokeStyle = '#2a1a10';
+        ctx.fillStyle = '#2a1a10';
+        ctx.lineWidth = 2.3;
+        if (isBlink || isCelebrating) {
+          ctx.beginPath();
+          ctx.arc(ex, ey + 2, 5, Math.PI, 0);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(ex, ey, 3.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.strokeStyle = '#f6f2eb';
+        ctx.lineWidth = 3.4;
+        ctx.beginPath();
+        ctx.moveTo(ex - 7, ey - 10);
+        ctx.lineTo(ex + 7, ey - 9);
+        ctx.stroke();
+      }
+
+      // Round glasses
+      ctx.strokeStyle = '#4e2f19';
+      ctx.lineWidth = 2.3;
+      ctx.beginPath();
+      ctx.arc(cx - 13, headY - 1, 10.5, 0, Math.PI * 2);
+      ctx.arc(cx + 13, headY - 1, 10.5, 0, Math.PI * 2);
+      ctx.moveTo(cx - 2.5, headY - 1);
+      ctx.lineTo(cx + 2.5, headY - 1);
+      ctx.stroke();
+
+      // Iconic burgundy beret hat
+      ctx.fillStyle = '#9e2b25';
+      ctx.beginPath();
+      ctx.ellipse(cx - 3, headY - 32, 40, 17, 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#681915';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, headY - 48);
+      ctx.lineTo(cx - 9, headY - 57);
+      ctx.stroke();
+
+      // 7. Right Painting Arm reaching RIGHT toward the center easel!
+      const brushSwingY = isDrawing
+        ? Math.sin(timeSec * 6.5) * 24
+        : isCelebrating || isWaving
+          ? -38 + Math.sin(timeSec * 12) * 12
+          : Math.sin(timeSec * 2) * 5;
+      const brushSwingX = isDrawing ? Math.cos(timeSec * 4.5) * 10 : 0;
+      const handX = cx + 62 + brushSwingX;
+      const handY = torsoTopY + 34 + brushSwingY;
+
+      ctx.strokeStyle = '#f2e6cf';
+      ctx.lineWidth = 15;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx + 34, torsoTopY + 24);
+      ctx.quadraticCurveTo(cx + 50, torsoTopY + 42, handX, handY);
+      ctx.stroke();
+
+      // Right Hand
+      ctx.fillStyle = '#f4cca8';
+      ctx.beginPath();
+      ctx.arc(handX, handY, 9.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Paintbrush pointing RIGHT toward the canvas on the center easel
+      ctx.save();
+      ctx.translate(handX, handY);
+      ctx.rotate(isDrawing ? -0.35 + Math.sin(timeSec * 7) * 0.22 : -0.65);
+      ctx.fillStyle = '#8b4e24';
+      ctx.fillRect(-10, -2.8, 44, 5.6);
+      ctx.fillStyle = '#d4d8dd';
+      ctx.fillRect(34, -3.2, 8, 6.4);
+      ctx.fillStyle = '#f4c542';
+      ctx.beginPath();
+      ctx.moveTo(42, -3.2);
+      ctx.lineTo(54, 0);
+      ctx.lineTo(42, 3.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.restore();
+    }
+  }
+
+  /* =========================================================================
+     6. CONFETTI FX
+     ========================================================================= */
+  class ConfettiFX {
+    constructor(canvas) {
+      this.canvas = canvas;
+      this.ctx = canvas ? canvas.getContext('2d') : null;
+      this.particles = [];
+    }
+
+    burst() {
+      if (!this.canvas) return;
+      const colors = ['#ffe066', '#ff6b6b', '#51cf66', '#4dabf7', '#ffa94d', '#fff3bf'];
+      for (let i = 0; i < 88; i++) {
+        this.particles.push({
+          x: this.canvas.width * (0.2 + Math.random() * 0.6),
+          y: this.canvas.height * 0.35,
+          vx: (Math.random() - 0.5) * 340,
+          vy: -160 - Math.random() * 280,
+          size: 6 + Math.random() * 7,
+          rot: Math.random() * Math.PI * 2,
+          vrot: (Math.random() - 0.5) * 9,
+          color: colors[i % colors.length],
+          life: 1
+        });
+      }
+    }
+
+    updateAndDraw(dtSec) {
+      const ctx = this.ctx;
+      if (!ctx) return;
+      ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        const p = this.particles[i];
+        p.vy += 420 * dtSec;
+        p.x += p.vx * dtSec;
+        p.y += p.vy * dtSec;
+        p.rot += p.vrot * dtSec;
+        p.life -= dtSec * 0.32;
+        if (p.life <= 0 || p.y > this.canvas.height + 20) {
+          this.particles.splice(i, 1);
+          continue;
+        }
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        ctx.restore();
+      }
+    }
+  }
+
+  /* =========================================================================
+     7. WEB AUDIO ORIGINAL STUDIO BGM & SFX
+     ========================================================================= */
+  class StudioBGM {
+    constructor() {
+      this.ctx = null;
+      this.masterGain = null;
+      this.enabled = true;
+      this.volume = 0.42;
+      this.timer = null;
+      this.step = 0;
+    }
+
+    init() {
+      if (this.ctx || typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      try {
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = this.enabled ? this.volume * 0.25 : 0;
+        this.masterGain.connect(this.ctx.destination);
+      } catch (_err) {
+        this.ctx = null;
+      }
+    }
+
+    start() {
+      this.init();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      if (this.timer) return;
+      const chords = [
+        [261.63, 329.63, 392.0, 493.88],
+        [220.0, 261.63, 329.63, 392.0],
+        [174.61, 220.0, 261.63, 329.63],
+        [196.0, 246.94, 293.66, 392.0]
+      ];
+      const melody = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33, 523.25, 440.0];
+
+      this.timer = setInterval(() => {
+        if (!this.enabled || !this.ctx || this.ctx.state !== 'running') return;
+        const now = this.ctx.currentTime;
+        const beat = this.step % 8;
+
+        if (beat === 0 || beat === 4) {
+          const chord = chords[Math.floor(this.step / 4) % chords.length];
+          chord.forEach((freq, idx) => {
+            this.playTone(freq, now + idx * 0.03, 1.45, 'triangle', 0.14);
+          });
+        }
+
+        if (beat % 2 === 0 || beat === 5) {
+          const note = melody[(this.step + Math.floor(this.step / 8)) % melody.length];
+          this.playTone(note, now, 0.52, 'sine', 0.11);
+        }
+
+        this.step++;
+      }, 420);
+    }
+
+    playTone(freq, startTime, duration, type = 'sine', peak = 0.12) {
+      if (!this.ctx || !this.masterGain) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.linearRampToValueAtTime(peak, startTime + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.03);
+    }
+
+    playCompleteFanfare() {
+      this.init();
+      if (!this.enabled || !this.ctx) return;
+      const now = this.ctx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+        this.playTone(f, now + idx * 0.09, 0.45, 'triangle', 0.24);
+      });
+    }
+
+    playVipSparkle() {
+      this.init();
+      if (!this.enabled || !this.ctx) return;
+      const now = this.ctx.currentTime;
+      [587.33, 739.99, 880.0, 1174.66, 1318.5].forEach((f, idx) => {
+        this.playTone(f, now + idx * 0.06, 0.35, 'sine', 0.2);
+      });
+    }
+
+    setEnabled(val) {
+      this.enabled = Boolean(val);
+      if (this.masterGain && this.ctx) {
+        this.masterGain.gain.setTargetAtTime(this.enabled ? this.volume * 0.25 : 0, this.ctx.currentTime, 0.06);
+      }
+    }
+
+    setVolume(pct) {
+      this.volume = Math.max(0, Math.min(1, Number(pct) / 100));
+      if (this.masterGain && this.ctx) {
+        this.masterGain.gain.setTargetAtTime(this.enabled ? this.volume * 0.25 : 0, this.ctx.currentTime, 0.06);
+      }
+    }
+  }
+
+  /* =========================================================================
+     8. VIETNAMESE TTS MC (vi-VN Default ON, Replay + Key S)
+     ========================================================================= */
+  class VoiceMC {
+    constructor(onTextUpdate) {
+      this.enabled = true;
+      this.onTextUpdate = onTextUpdate || (() => {});
+      this.lastLine = 'Chào các cháu đến Phòng Tranh Ông Ba! Tặng món quà bất kỳ để Ông vẽ chân dung theo đúng phong cách của món quà nhé!';
+      this.lastHeartSpeakAt = 0;
+      this.voice = null;
+      this.loadVoice();
+    }
+
+    loadVoice() {
+      if (typeof window === 'undefined' || !window.speechSynthesis) return;
+      const pick = () => {
+        const voices = window.speechSynthesis.getVoices() || [];
+        this.voice =
+          voices.find((v) => /vi[-_]?VN/i.test(v.lang)) ||
+          voices.find((v) => /^vi/i.test(v.lang)) ||
+          null;
+      };
+      pick();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = pick;
+      }
+    }
+
+    speak(text, { priority = false, isHeart = false, updateBubble = true } = {}) {
+      if (!text) return;
+      if (isHeart) {
+        const now = Date.now();
+        if (now - this.lastHeartSpeakAt < 4500) {
+          return;
+        }
+        this.lastHeartSpeakAt = now;
+      }
+
+      if (updateBubble) {
+        this.lastLine = text;
+        this.onTextUpdate(text);
+      }
+
+      if (!this.enabled || typeof window === 'undefined' || !window.speechSynthesis) return;
+      try {
+        if (priority) {
+          window.speechSynthesis.cancel();
+        }
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'vi-VN';
+        utter.rate = 1.03;
+        utter.pitch = 1.02;
+        if (this.voice) utter.voice = this.voice;
+        window.speechSynthesis.speak(utter);
+      } catch (_err) {}
+    }
+
+    replay() {
+      this.speak(this.lastLine, { priority: true });
+    }
+
+    setEnabled(val) {
+      this.enabled = Boolean(val);
+      if (!this.enabled && typeof window !== 'undefined' && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (_err) {}
+      }
+    }
+  }
+
+  /* =========================================================================
+     9. DEMO BOT (Gifts across all 5 styles, 1/5/10+ tiers, comments & hearts)
+     ========================================================================= */
+  class DemoBot {
+    constructor(engine) {
+      this.engine = engine;
+      this.timer = null;
+      this.step = 0;
+      this.users = [
+        'Minh Anh', 'Hoàng Nam', 'Linh Chi', 'Tuấn Kiệt', 'Thảo Vy',
+        'Gia Bảo', 'Ngọc Hân', 'Quốc Anh', 'Phương Nhi', 'Đức Huy',
+        'Khánh Linh', 'Bảo Trâm'
+      ];
+    }
+
+    start() {
+      if (this.timer) return;
+      // Opening sequence showcasing distinct gifts & styles immediately
+      this.engine.handleGift({ username: 'Minh Anh', giftId: 5655, count: 1 }); // Hoa hồng 1💎 -> Biếm họa + Khung Gỗ
+      this.engine.handleGift({ username: 'Hoàng Nam', giftId: 5487, count: 1 }); // Tim ngón tay 5💎 -> Truyền thần + Khung Vàng
+      this.engine.handleGift({ username: 'Linh Chi', giftId: 5657, count: 1 }); // Kẹo mút 10💎 -> Anime + Khung Hoàng Gia + VIP 10s
+      this.engine.handleComment({ username: 'Tuấn Kiệt', text: 'Ông Ba vẽ có tâm ghê, đẹp xuất sắc luôn!' });
+
+      this.timer = setInterval(() => {
+        if (this.engine.paused || !this.engine.running) return;
+        this.step++;
+        const user = this.users[this.step % this.users.length];
+        const r = Math.random();
+
+        if (this.step % 6 === 0) {
+          // Big gift >=10💎 (with repeats for +10s stacking)
