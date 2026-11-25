@@ -471,7 +471,7 @@
         frame: job.frame,
         giftId: job.giftId,
         giftName: job.giftName,
-        giftIcon: job.icon,
+        giftIcon: job.giftIcon,
         giftImg: job.giftImg,
         dataUrl: renderedUrl,
         completedAt: Date.now()
@@ -989,7 +989,7 @@
       }
 
       if (pOutline > 0.45) {
-              const sp = Math.min(1, (pOutline - 0.45) / 0.55);
+        const sp = Math.min(1, (pOutline - 0.45) / 0.55);
         const bodyTop = cy + headRy * 0.86 + (style === 'caricature' ? 14 : 22);
         const spread = style === 'caricature' ? 0.92 : 1.18;
         ctx.beginPath();
@@ -1980,7 +1980,7 @@
 
         if (this.step % 6 === 0) {
           // Big gift >=10💎 (with repeats for +10s stacking)
-                  const vipUser = this.step % 12 === 0 ? 'Minh Anh' : user;
+          const vipUser = this.step % 12 === 0 ? 'Minh Anh' : user;
           const bigGiftIds = [5879, 5658, 5657, 6052, 6097];
           const gid = this.step % 12 === 0 ? 5879 : bigGiftIds[this.step % bigGiftIds.length];
           this.engine.handleGift({ username: vipUser, giftId: gid, count: 1 });
