@@ -1980,3 +1980,995 @@
 
         if (this.step % 6 === 0) {
           // Big gift >=10💎 (with repeats for +10s stacking)
+                  const vipUser = this.step % 12 === 0 ? 'Minh Anh' : user;
+          const bigGiftIds = [5879, 5658, 5657, 6052, 6097];
+          const gid = this.step % 12 === 0 ? 5879 : bigGiftIds[this.step % bigGiftIds.length];
+          this.engine.handleGift({ username: vipUser, giftId: gid, count: 1 });
+        } else if (r < 0.48 && this.engine.queue.length < 7) {
+          // Spread 1💎 and 5💎 gifts across all 5 styles!
+          const regularGifts = [5655, 6224, 5827, 5269, 6042, 37, 5487, 6053, 5650, 6064, 5760, 6093];
+          const gid = regularGifts[this.step % regularGifts.length];
+          this.engine.handleGift({ username: user, giftId: gid, count: 1 });
+        } else if (r < 0.76) {
+          const lines = [
+            'Ông Ba vẽ Biếm họa cười xỉu luôn!',
+            'Mình thích nét Truyền thần cổ điển ghê',
+            '1 xu mua được cả 5 phong cách quá hời!',
+            'Khung Hoàng Gia phát sáng mê quá trời',
+            'Vẽ tới lượt mình chưa Ông Ba ơi ❤️',
+            'Tranh Sơn dầu nhìn như bảo tàng á!'
+          ];
+          this.engine.handleComment({ username: user, text: lines[this.step % lines.length] });
+        } else {
+          this.engine.handleLike({ username: user, count: 5 });
+        }
+      }, 3600);
+    }
+
+    stop() {
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+    }
+  }
+
+  /* =========================================================================
+     10. BROWSER APP CONTROLLER
+     ========================================================================= */
+  function initBrowserApp() {
+    if (typeof document === 'undefined') return null;
+
+    const params = new URLSearchParams(window.location.search);
+    let parentHasClean = false;
+    try {
+      if (window.parent && window.parent !== window && window.parent.location) {
+        parentHasClean = new URLSearchParams(window.parent.location.search).get('clean') === '1';
+      }
+    } catch (_err) {}
+    const cleanMode =
+      params.get('clean') === '1' ||
+      /clean=1/.test(window.location.hash || '') ||
+      document.documentElement.classList.contains('clean-mode') ||
+      parentHasClean;
+    const liveUser = (params.get('live') || '').trim().replace(/^@/, '');
+    const customDrawMs = Number(params.get('drawMs') || 0);
+    const customCelebrateMs = Number(params.get('celebrateMs') || 0);
+    const autoStart = params.get('autostart') === '1' || params.get('obs') === '1' || Boolean(liveUser);
+
+    const el = {
+      stage: document.getElementById('stage'),
+      heartsLayer: document.getElementById('heartsLayer'),
+      modePill: document.getElementById('modePill'),
+      hostControls: document.getElementById('hostControls'),
+      btnStart: document.getElementById('btnStart'),
+      btnTts: document.getElementById('btnTts'),
+      btnReplay: document.getElementById('btnReplay'),
+      btnMusic: document.getElementById('btnMusic'),
+      musicVolume: document.getElementById('musicVolume'),
+      drawnCountStat: document.getElementById('drawnCountStat'),
+      topDonorStat: document.getElementById('topDonorStat'),
+      latestCommentStat: document.getElementById('latestCommentStat'),
+      elevatedBar: document.getElementById('elevatedBar'),
+      elevatedLineText: document.getElementById('elevatedLineText'),
+      subjectStatusTag: document.getElementById('subjectStatusTag'),
+      currentSubjectName: document.getElementById('currentSubjectName'),
+      currentStyleBadge: document.getElementById('currentStyleBadge'),
+      currentFrameBadge: document.getElementById('currentFrameBadge'),
+      easelFrame: document.getElementById('easelFrame'),
+      portraitCanvas: document.getElementById('portraitCanvas'),
+      confettiCanvas: document.getElementById('confettiCanvas'),
+      artistCanvas: document.getElementById('artistCanvas'),
+      completeOverlay: document.getElementById('completeOverlay'),
+      completeRecipient: document.getElementById('completeRecipient'),
+      completeMeta: document.getElementById('completeMeta'),
+      pauseOverlay: document.getElementById('pauseOverlay'),
+      mcText: document.getElementById('mcText'),
+      phaseSteps: document.getElementById('phaseSteps'),
+      drawProgressFill: document.getElementById('drawProgressFill'),
+      drawTimerText: document.getElementById('drawTimerText'),
+      drawPercentText: document.getElementById('drawPercentText'),
+      canvasProgressChip: document.getElementById('canvasProgressChip'),
+      queueCountBadge: document.getElementById('queueCountBadge'),
+      queueActiveWrap: document.getElementById('queueActiveWrap'),
+      queueList: document.getElementById('queueList'),
+      queueOverflow: document.getElementById('queueOverflow'),
+      queuePersonPopover: document.getElementById('queuePersonPopover'),
+      styleChipsRow: document.getElementById('styleChipsRow'),
+      styleGiftPopover: document.getElementById('styleGiftPopover'),
+      galleryCounter: document.getElementById('galleryCounter'),
+      galleryGrid: document.getElementById('galleryGrid')
+    };
+
+    // Ironclad ?clean=1 enforcement in JS (in addition to server HTML injection, head script & CSS)
+    if (cleanMode) {
+      document.documentElement.classList.add('clean-mode');
+      document.body.classList.add('clean-mode');
+      if (el.hostControls) {
+        el.hostControls.hidden = true;
+        el.hostControls.style.setProperty('display', 'none', 'important');
+        el.hostControls.style.setProperty('visibility', 'hidden', 'important');
+      }
+    }
+
+    const portraitRenderer = new PortraitRenderer(el.portraitCanvas);
+    const artistRenderer = new ArtistRenderer(el.artistCanvas);
+    const confetti = new ConfettiFX(el.confettiCanvas);
+    const bgm = new StudioBGM();
+    const mc = new VoiceMC((line) => {
+      if (el.mcText) el.mcText.textContent = line;
+    });
+
+    function getActiveMcLine(job) {
+      if (!job) {
+        return 'Chào các cháu đến Phòng Tranh Ông Ba! Tặng món quà bất kỳ để Ông đứng vẽ chân dung tặng nhé!';
+      }
+      const st = ART_STYLES[job.style] || ART_STYLES.caricature;
+      const fr = FRAME_TIERS[job.frame] || FRAME_TIERS.wood;
+      if (job.status === 'celebrating') {
+        return `Hoàn thành! Mời bạn ${job.username} nhận chân dung ${st.label} từ món ${job.giftName} (${fr.label}) nhé!`;
+      }
+      return `Ông Ba đang vẽ tặng bạn ${job.username} kiểu ${st.label} từ món ${job.giftName} (${fr.label}) nhé!`;
+    }
+
+    const engine = new GameEngine({
+      drawDurationMs: customDrawMs >= 500 ? customDrawMs : DEFAULT_CONFIG.drawDurationMs,
+      celebrateDurationMs: customCelebrateMs >= 200 ? customCelebrateMs : DEFAULT_CONFIG.celebrateDurationMs,
+      hooks: {
+        onCapturePortrait: (job) => portraitRenderer.captureSnapshot(job),
+        onPortraitGift: ({ username, count, gift, frame, style }) => {
+          // Speech bubble stays locked to the CURRENTLY DRAWING portrait (never mentions another gift!)
+          const st = ART_STYLES[style] || ART_STYLES.caricature;
+          const fr = FRAME_TIERS[frame] || FRAME_TIERS.wood;
+          mc.speak(
+            `Cảm ơn bạn ${username} tặng ${count} ${gift.name}! Đặt vẽ chân dung kiểu ${st.label} với ${fr.label} nhé!`,
+            { updateBubble: false }
+          );
+        },
+        onBigGift: ({ username, gift, style, elevatedEntry }) => {
+          bgm.playVipSparkle();
+          const st = ART_STYLES[style] || ART_STYLES.caricature;
+          const sec = Math.ceil(elevatedEntry.remainingSeconds);
+          mc.speak(
+            `Quá đỉnh! Cảm ơn đại gia ${username} tặng ${gift.name}! Vẽ kiểu ${st.label}, Khung Hoàng Gia và treo cao ${sec} giây!`,
+            { updateBubble: false }
+          );
+        },
+        onJobStart: (job) => {
+          mc.speak(getActiveMcLine(job), { priority: true, updateBubble: true });
+        },
+        onJobComplete: (record) => {
+          confetti.burst();
+          bgm.playCompleteFanfare();
+          mc.speak(getActiveMcLine(engine.currentJob || { ...record, status: 'celebrating' }), {
+            priority: true,
+            updateBubble: true
+          });
+        },
+        onHeart: ({ username, count }) => {
+          spawnFloatingHearts(Math.min(6, Math.max(2, count)));
+          artistRenderer.triggerWave();
+          mc.speak(`Ông Ba cảm ơn bạn ${username} đã thả tim động viên nha!`, {
+            isHeart: true,
+            updateBubble: false
+          });
+        },
+        onElevatedTick: () => renderElevated(),
+        onPauseChange: (paused) => {
+          if (el.pauseOverlay) el.pauseOverlay.hidden = !paused;
+        },
+        onStateChange: () => scheduleDomRender()
+      }
+    });
+
+    const demoBot = new DemoBot(engine);
+    // Ably LIVE MODE (trang GitHub Pages) — thay WebSocket nội bộ bằng
+    // @ably/pubsub-device 3.2.0 (global AblyPubSub). Chỉ đổi đường nhận
+    // event — mọi logic game giữ nguyên. (y mẫu Câu Cá)
+    let ablyClient = null;
+    let ablyChannel = null;
+    let ablyConnected = false;
+    let ablyAttachedOnce = false;
+    const seenMsgIds = new Set();
+    const pageLoadTs = Date.now();
+    let openStyleId = null;
+    let selectedQueueJobId = null;
+
+    function fitStageToViewport() {
+      if (!el.stage) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      if (vw >= 1080 && vh >= 1920) {
+        el.stage.style.transform = 'none';
+        return;
+      }
+      const scale = Math.min(vw / 1080, vh / 1920);
+      el.stage.style.transform = `scale(${scale.toFixed(4)})`;
+    }
+    fitStageToViewport();
+    window.addEventListener('resize', fitStageToViewport);
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderInlineGiftIcon(img, emoji, alt) {
+      if (img) {
+        return `<img class="inline-gift-img" src="${escapeHtml(img)}" alt="${escapeHtml(alt)}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" /><span style="display:none">${emoji || '🎁'}</span>`;
+      }
+      return `<span>${emoji || '🎁'}</span>`;
+    }
+
+    // 5 Style Chips on 1 row + Click-to-open real gift list popover (default hidden!)
+    function renderStyleChips() {
+      if (!el.styleChipsRow) return;
+      el.styleChipsRow.innerHTML = ALL_STYLE_IDS.map((styleId) => {
+        const st = ART_STYLES[styleId];
+        const sample = GIFT_CATALOG.find((g) => g.style === styleId && g.diamonds === 1) || GIFT_CATALOG.find((g) => g.style === styleId);
+        const isOpen = openStyleId === styleId;
+        return `
+          <button type="button" class="style-chip-btn ${isOpen ? 'is-open' : ''}" data-style-chip="${styleId}" aria-expanded="${isOpen ? 'true' : 'false'}">
+            <span class="chip-style-title">${st.icon} ${escapeHtml(st.label)}</span>
+            <span class="chip-sample-gift">
+              <img class="chip-sample-img" src="${escapeHtml(sample.img)}" alt="${escapeHtml(sample.name)}" width="24" height="24" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
+              <span style="display:none">${sample.icon}</span>
+              <span>${escapeHtml(sample.name)} ${sample.diamonds}💎</span>
+            </span>
+          </button>`;
+      }).join('');
+    }
+
+    function renderStylePopover() {
+      if (!el.styleGiftPopover) return;
+      if (!openStyleId || !ART_STYLES[openStyleId]) {
+        el.styleGiftPopover.hidden = true;
+        el.styleGiftPopover.innerHTML = '';
+        return;
+      }
+      const st = ART_STYLES[openStyleId];
+      const gifts = GIFT_CATALOG.filter((g) => g.style === openStyleId);
+      const cardsHtml = gifts
+        .map((g) => {
+          const fr = FRAME_TIERS[frameForDiamonds(g.diamonds)];
+          const diaText = g.diamonds >= 1000 ? `${g.diamonds.toLocaleString('vi-VN')}💎` : `${g.diamonds}💎`;
+          return `
+            <div class="spop-gift-card" data-gift-id="${g.id}" data-style="${openStyleId}">
+              <img class="gift-icon-img" src="${escapeHtml(g.img)}" alt="${escapeHtml(g.name)}" width="42" height="42" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" />
+              <span class="gift-icon-fallback">${g.icon}</span>
+              <div class="spop-gift-meta">
+                <div class="spop-gift-name">${escapeHtml(g.name)}</div>
+                <div class="spop-gift-price">${diaText} · ${fr.label}</div>
+              </div>
+            </div>`;
+        })
+        .join('');
+
+      el.styleGiftPopover.hidden = false;
+      el.styleGiftPopover.innerHTML = `
+        <div class="spop-head">
+          <div>
+            <span class="spop-title">${st.icon} Quà chọn kiểu ${escapeHtml(st.label)}</span>
+            <span class="spop-sub">${gifts.length} món · 1💎 Gỗ · 5💎 Vàng · ≥10💎 Hoàng Gia + Treo cao</span>
+          </div>
+          <button type="button" class="popover-close" id="btnCloseStylePop" aria-label="Đóng">✕</button>
+        </div>
+        <div class="spop-grid">${cardsHtml}</div>`;
+    }
+
+    function toggleStylePopover(styleId) {
+      openStyleId = openStyleId === styleId ? null : styleId;
+      renderStyleChips();
+      renderStylePopover();
+    }
+
+    if (el.styleChipsRow) {
+      el.styleChipsRow.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-style-chip]');
+        if (!btn) return;
+        e.stopPropagation();
+        toggleStylePopover(btn.dataset.styleChip);
+      });
+    }
+
+    if (el.styleGiftPopover) {
+      el.styleGiftPopover.addEventListener('click', (e) => {
+        if (e.target.closest('#btnCloseStylePop')) {
+          openStyleId = null;
+          renderStyleChips();
+          renderStylePopover();
+        }
+      });
+    }
+
+    renderStyleChips();
+    renderStylePopover();
+
+    function spawnFloatingHearts(num) {
+      if (!el.heartsLayer) return;
+      const icons = ['❤️', '💖', '🧡', '💕'];
+      for (let i = 0; i < num; i++) {
+        const span = document.createElement('span');
+        span.className = 'floating-heart';
+        span.textContent = icons[i % icons.length];
+        span.style.left = `${14 + Math.random() * 72}%`;
+        span.style.setProperty('--drift', `${(Math.random() - 0.5) * 90}px`);
+        span.style.animationDelay = `${i * 0.08}s`;
+        el.heartsLayer.appendChild(span);
+        setTimeout(() => span.remove(), 2900);
+      }
+    }
+
+    let domRenderScheduled = false;
+    function scheduleDomRender() {
+      if (domRenderScheduled) return;
+      domRenderScheduled = true;
+      requestAnimationFrame(() => {
+        domRenderScheduled = false;
+        renderAllDom();
+      });
+    }
+
+    // Header Row 2: Đã vẽ N bức • 👑 Top tặng quà: [tên] • 💬 [1 bình luận mới nhất]
+    function renderHeaderTicker() {
+      if (el.drawnCountStat) {
+        el.drawnCountStat.textContent = `Đã vẽ ${engine.completedCount} bức`;
+      }
+      if (el.topDonorStat) {
+        const top = engine.getLeaderboardTop(1);
+        if (top.length > 0) {
+          el.topDonorStat.textContent = `👑 Top tặng quà: ${top[0].username} (${top[0].diamonds.toLocaleString('vi-VN')}💎)`;
+        } else {
+          el.topDonorStat.textContent = '👑 Top tặng quà: Chưa có';
+        }
+      }
+      if (el.latestCommentStat) {
+        const latest = engine.comments[0];
+        if (latest) {
+          el.latestCommentStat.textContent = `💬 ${latest.username}: ${latest.text}`;
+        } else {
+          el.latestCommentStat.textContent = '💬 Tặng quà bất kỳ để đặt vẽ chân dung!';
+        }
+      }
+    }
+
+    // 1-Line Slim VIP Elevated Bar (shows VIP with most seconds remaining + "…và N tranh khác đang treo")
+    function renderElevated() {
+      if (!el.elevatedLineText || !el.elevatedBar) return;
+      const summary = engine.getElevatedDisplaySummary();
+      if (!summary.primary) {
+        el.elevatedBar.classList.remove('has-vip');
+        el.elevatedLineText.textContent = '🌟 Treo cao: Quà ≥10💎 treo VIP 10s (+10s mỗi lần tặng lặp)';
+        el.elevatedBar.removeAttribute('data-vip-style');
+        el.elevatedBar.removeAttribute('data-vip-user');
+        return;
+      }
+      const p = summary.primary;
+      const st = ART_STYLES[p.style] || ART_STYLES.caricature;
+      const secs = Math.max(1, Math.ceil(p.remainingSeconds));
+      const suffix = summary.othersCount > 0 ? ` …và ${summary.othersCount} tranh khác đang treo` : '';
+      const waitNote = p.waitingForPortrait ? ' (chờ vẽ xong)' : '';
+      el.elevatedBar.classList.add('has-vip');
+      el.elevatedBar.setAttribute('data-vip-style', p.style);
+      el.elevatedBar.setAttribute('data-vip-user', p.username);
+      el.elevatedLineText.textContent = `🌟 Treo cao: ${p.username} • ${st.label} • còn ${secs}s${waitNote}${suffix}`;
+    }
+
+    function renderEaselMeta() {
+      const job = engine.currentJob;
+      const frameId = job ? job.frame : 'wood';
+      const frameInfo = FRAME_TIERS[frameId] || FRAME_TIERS.wood;
+
+      el.easelFrame.className = `portrait-frame frame-${frameId}`;
+      el.currentFrameBadge.className = `pill-frame frame-pill-${frameId}`;
+      el.currentFrameBadge.textContent = `${frameInfo.icon} ${frameInfo.label}`;
+
+      if (!job) {
+        el.subjectStatusTag.textContent = 'SẴN SÀNG';
+        el.subjectStatusTag.classList.remove('is-drawing');
+        el.currentSubjectName.textContent = 'Phòng Tranh Ông Ba sẵn sàng!';
+        el.currentStyleBadge.textContent = '🎨 5 Phong Cách';
+        el.completeOverlay.hidden = true;
+      } else {
+        const styleInfo = ART_STYLES[job.style] || ART_STYLES.caricature;
+        el.currentSubjectName.textContent = `Chân dung: ${job.username}`;
+        el.currentStyleBadge.textContent = `${styleInfo.icon} ${styleInfo.label}`;
+
+        if (job.status === 'celebrating') {
+          el.subjectStatusTag.textContent = 'HOÀN THÀNH';
+          el.subjectStatusTag.classList.add('is-drawing');
+          el.completeOverlay.hidden = false;
+          el.completeRecipient.textContent = `Tặng bạn ${job.username}`;
+          el.completeMeta.textContent = `${styleInfo.icon} ${styleInfo.label} · ${frameInfo.icon} ${frameInfo.label}`;
+        } else {
+          el.subjectStatusTag.textContent = 'ĐANG VẼ';
+          el.subjectStatusTag.classList.add('is-drawing');
+          el.completeOverlay.hidden = true;
+        }
+      }
+
+      // Always keep MC speech bubble strictly synced to the currently drawing/celebrating portrait!
+      const activeLine = getActiveMcLine(job);
+      if (el.mcText && el.mcText.textContent !== activeLine) {
+        el.mcText.textContent = activeLine;
+      }
+      el.pauseOverlay.hidden = !engine.paused;
+    }
+
+    // Full-body standing viewer character SVG (deterministic from username traits)
+    function renderStandingCharacterSvg(username, { isPoser = false, animDelay = 0 } = {}) {
+      const t = generateAvatarTraits(username);
+      const cls = isPoser ? 'standing-person-svg is-poser' : 'standing-person-svg is-waiting';
+      const pantsPalette = ['#2d3a4b', '#3d3028', '#2f4538', '#4a3548', '#2c3548'];
+      const pantsColor = pantsPalette[t.seed % pantsPalette.length];
+      const shoeColor = '#2a1a12';
+
+      let backHair = '';
+      if (t.hairStyle === 'long') {
+        backHair = `<rect x="30" y="34" width="50" height="48" rx="20" fill="${t.hairMain}"/>`;
+      } else if (t.hairStyle === 'twintails') {
+        backHair = `<ellipse cx="26" cy="58" rx="9" ry="22" fill="${t.hairMain}"/><ellipse cx="84" cy="58" rx="9" ry="22" fill="${t.hairMain}"/>`;
+      } else if (t.hairStyle === 'bun') {
+        backHair = `<circle cx="55" cy="18" r="11" fill="${t.hairMain}"/>`;
+      }
+
+      let accSvg = '';
+      if (t.accessory === 'glasses' || t.accessory === 'roundGlasses') {
+        accSvg = `<circle cx="46" cy="45" r="6.5" fill="none" stroke="#3a2415" stroke-width="2"/><circle cx="64" cy="45" r="6.5" fill="none" stroke="#3a2415" stroke-width="2"/><line x1="52.5" y1="45" x2="57.5" y2="45" stroke="#3a2415" stroke-width="2"/>`;
+      } else if (t.accessory === 'crown') {
+        accSvg = `<polygon points="41,24 44,12 50,19 55,9 60,19 66,12 69,24" fill="#f7c948" stroke="#7a510c" stroke-width="1.5"/>`;
+      } else if (t.accessory === 'beret') {
+        accSvg = `<ellipse cx="56" cy="23" rx="24" ry="8" fill="#a8332a" stroke="#5e1915" stroke-width="1.5"/>`;
+      } else if (t.accessory === 'bow') {
+        accSvg = `<ellipse cx="69" cy="26" rx="7" ry="4" fill="#e45c7a"/><ellipse cx="78" cy="26" rx="7" ry="4" fill="#e45c7a"/><circle cx="73.5" cy="26" r="2.8" fill="#c93d5d"/>`;
+      } else if (t.accessory === 'headphones') {
+        accSvg = `<path d="M31 44 A24 24 0 0 1 79 44" fill="none" stroke="#2e4057" stroke-width="4"/><rect x="27" y="40" width="6" height="14" rx="3" fill="#e6a938"/><rect x="77" y="40" width="6" height="14" rx="3" fill="#e6a938"/>`;
+      }
+
+      const leftArm = isPoser
+        ? `<path d="M36 78 Q20 62 22 48" stroke="${t.shirtColor}" stroke-width="10" stroke-linecap="round" fill="none"/><circle cx="22" cy="46" r="5.5" fill="${t.skinBase}"/>`
+        : `<path d="M37 78 Q28 96 31 112" stroke="${t.shirtColor}" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="31" cy="113" r="5" fill="${t.skinBase}"/>`;
+      const rightArm = isPoser
+        ? `<path d="M74 78 Q88 92 84 106" stroke="${t.shirtColor}" stroke-width="10" stroke-linecap="round" fill="none"/><circle cx="84" cy="108" r="5.5" fill="${t.skinBase}"/>`
+        : `<path d="M73 78 Q82 96 79 112" stroke="${t.shirtColor}" stroke-width="9" stroke-linecap="round" fill="none"/><circle cx="79" cy="113" r="5" fill="${t.skinBase}"/>`;
+
+      return `
+        <svg class="${cls}" style="animation-delay:${animDelay}s" viewBox="0 0 110 186" role="img" aria-label="Nhân vật đứng ${escapeHtml(username)}">
+          <ellipse cx="55" cy="178" rx="28" ry="6" fill="rgba(0,0,0,0.34)"/>
+          <rect x="41" y="120" width="12" height="50" rx="5" fill="${pantsColor}"/>
+          <rect x="57" y="120" width="12" height="50" rx="5" fill="${pantsColor}"/>
+          <ellipse cx="45" cy="172" rx="10" ry="5.5" fill="${shoeColor}"/>
+          <ellipse cx="65" cy="172" rx="10" ry="5.5" fill="${shoeColor}"/>
+          ${leftArm}
+          ${rightArm}
+          <rect x="35" y="70" width="40" height="56" rx="14" fill="${t.shirtColor}"/>
+          <path d="M46 70 Q55 79 64 70" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2.5"/>
+          ${backHair}
+          <rect x="49" y="61" width="12" height="12" rx="4" fill="${t.skinShadow}"/>
+          <circle cx="33" cy="46" r="5" fill="${t.skinBase}"/>
+          <circle cx="77" cy="46" r="5" fill="${t.skinBase}"/>
+          <ellipse cx="55" cy="44" rx="22" ry="24" fill="${t.skinBase}"/>
+          <path d="M33 42 C32 18, 78 18, 77 42 Q66 28 56 32 Q45 27 33 42 Z" fill="${t.hairMain}"/>
+          <ellipse cx="42" cy="51" rx="4.5" ry="2.5" fill="${t.blush}" opacity="0.45"/>
+          <ellipse cx="68" cy="51" rx="4.5" ry="2.5" fill="${t.blush}" opacity="0.45"/>
+          <circle cx="46" cy="45" r="3.2" fill="#1e130c"/>
+          <circle cx="64" cy="45" r="3.2" fill="#1e130c"/>
+          <circle cx="45" cy="43.8" r="1.1" fill="#ffffff"/>
+          <circle cx="63" cy="43.8" r="1.1" fill="#ffffff"/>
+          <path d="M48 55 Q55 62 62 55" fill="none" stroke="#8a382e" stroke-width="2.2" stroke-linecap="round"/>
+          ${accSvg}
+        </svg>`;
+    }
+
+    function renderQueuePersonPopover() {
+      if (!el.queuePersonPopover) return;
+      if (!selectedQueueJobId) {
+        el.queuePersonPopover.hidden = true;
+        el.queuePersonPopover.innerHTML = '';
+        return;
+      }
+      const idx = engine.queue.findIndex((j) => j.id === selectedQueueJobId);
+      if (idx < 0) {
+        selectedQueueJobId = null;
+        el.queuePersonPopover.hidden = true;
+        el.queuePersonPopover.innerHTML = '';
+        return;
+      }
+      const item = engine.queue[idx];
+      const st = ART_STYLES[item.style] || ART_STYLES.caricature;
+      const fr = FRAME_TIERS[item.frame] || FRAME_TIERS.wood;
+      el.queuePersonPopover.hidden = false;
+      el.queuePersonPopover.innerHTML = `
+        <img class="qpop-img" src="${escapeHtml(item.giftImg || '')}" alt="${escapeHtml(item.giftName)}" onerror="this.style.display='none'" />
+        <div class="qpop-info">
+          <div class="qpop-title">#${idx + 1} · ${escapeHtml(item.username)}</div>
+          <div class="qpop-sub">${escapeHtml(item.giftName)} (${item.diamonds}💎) · ${st.icon} ${st.label} · ${fr.icon} ${fr.label}</div>
+        </div>
+        <button type="button" class="popover-close" id="btnCloseQueuePop" aria-label="Đóng">✕</button>`;
+    }
+
+    function renderQueue() {
+      const q = engine.getVisibleQueue();
+      el.queueCountBadge.textContent = `${q.totalWaiting} đang đợi`;
+
+      // 3A. Active standing poser standing closest to center easel
+      if (q.active) {
+        const st = ART_STYLES[q.active.style] || ART_STYLES.caricature;
+        const fr = FRAME_TIERS[q.active.frame] || FRAME_TIERS.wood;
+        const giftIconHtml = renderInlineGiftIcon(q.active.giftImg, q.active.giftIcon, q.active.giftName);
+        el.queueActiveWrap.innerHTML = `
+          <div class="active-poser-badge" data-job-id="${q.active.id}">
+            <span class="poser-status-pill">🎨 ĐANG ĐƯỢC VẼ</span>
+            <div class="poser-name">${escapeHtml(q.active.username)}</div>
+            <div class="poser-meta-line">${giftIconHtml}<span>${escapeHtml(q.active.giftName)} · ${st.label} · ${fr.label}</span></div>
+          </div>
+          <div class="poser-figure-spot">
+            <div class="poser-spotlight-rug" aria-hidden="true"></div>
+            ${renderStandingCharacterSvg(q.active.username, { isPoser: true })}
+          </div>`;
+      } else {
+        el.queueActiveWrap.innerHTML = `
+          <div class="poser-empty">
+            <div class="poser-empty-icon">🧍</div>
+            <div class="poser-empty-text">Vị trí làm mẫu<br />Tặng quà để lên đứng vẽ</div>
+          </div>`;
+      }
+
+      // 3B. Compact 1-row standing queue: ONLY order # + standing person + Name (click to inspect gift & style)
+      if (q.waiting.length === 0) {
+        el.queueList.innerHTML = `<div class="standing-queue-empty">Chưa có bạn nào xếp hàng</div>`;
+      } else {
+        el.queueList.innerHTML = q.waiting
+          .map((item, idx) => {
+            const nextCls = idx === 0 ? 'is-next-up' : '';
+            const selCls = item.id === selectedQueueJobId ? 'is-selected' : '';
+            return `
+              <button type="button" class="standing-slot ${nextCls} ${selCls}" data-job-id="${item.id}" data-order="${idx + 1}" title="Bấm xem quà & phong cách của ${escapeHtml(item.username)}">
+                <span class="standing-order-pill">#${idx + 1}</span>
+                ${renderStandingCharacterSvg(item.username, { isPoser: false, animDelay: Number((idx * 0.2).toFixed(2)) })}
+                <span class="standing-slot-name">${escapeHtml(item.username)}</span>
+              </button>`;
+          })
+          .join('');
+      }
+
+      if (q.overflow > 0) {
+        el.queueOverflow.hidden = false;
+        el.queueOverflow.textContent = `+${q.overflow} bạn đang đợi phía sau`;
+      } else {
+        el.queueOverflow.hidden = true;
+      }
+
+      renderQueuePersonPopover();
+    }
+
+    if (el.queueList) {
+      el.queueList.addEventListener('click', (e) => {
+        const slot = e.target.closest('.standing-slot[data-job-id]');
+        if (!slot) return;
+        e.stopPropagation();
+        const id = Number(slot.dataset.jobId);
+        selectedQueueJobId = selectedQueueJobId === id ? null : id;
+        renderQueue();
+      });
+    }
+
+    if (el.queuePersonPopover) {
+      el.queuePersonPopover.addEventListener('click', (e) => {
+        if (e.target.closest('#btnCloseQueuePop')) {
+          selectedQueueJobId = null;
+          renderQueue();
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (openStyleId && !e.target.closest('#styleChipsSection')) {
+        openStyleId = null;
+        renderStyleChips();
+        renderStylePopover();
+      }
+      if (selectedQueueJobId && !e.target.closest('#queuePanel')) {
+        selectedQueueJobId = null;
+        renderQueue();
+      }
+    });
+
+    // Slim Gallery: 5 miniature framed portraits + tiny name only
+    function renderGallery() {
+      const items = engine.gallery.slice(0, 5);
+      el.galleryCounter.textContent = `${items.length}/5`;
+
+      let html = '';
+      for (let i = 0; i < 5; i++) {
+        const rec = items[i];
+        if (!rec) {
+          html += `<div class="gallery-slot-empty">#${i + 1}</div>`;
+        } else {
+          const imgHtml = rec.dataUrl && rec.dataUrl.startsWith('data:image')
+            ? `<img src="${rec.dataUrl}" alt="Tranh ${escapeHtml(rec.username)}" />`
+            : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#faf1dd;color:#4a2b14;font-weight:800;font-size:24px;border-radius:4px;">${escapeHtml(rec.username.charAt(0).toUpperCase())}</div>`;
+          html += `
+            <article class="gallery-card" data-gallery-id="${rec.id}" data-style="${rec.style}" data-frame="${rec.frame}">
+              <div class="gallery-thumb-frame frame-${rec.frame}">
+                ${imgHtml}
+              </div>
+              <div class="gallery-user">${escapeHtml(rec.username)}</div>
+            </article>`;
+        }
+      }
+      el.galleryGrid.innerHTML = html;
+    }
+
+    // Single source of truth for progress % (canvas chip & progress bar ALWAYS strictly identical!)
+    function renderProgressUI() {
+      const { pct, phaseIndex, remainingSec } = engine.getDrawingProgress();
+      const pctText = `${pct}%`;
+
+      el.drawProgressFill.style.width = pctText;
+      if (el.drawPercentText) el.drawPercentText.textContent = pctText;
+      if (el.canvasProgressChip) {
+        if (engine.currentJob && engine.currentJob.status === 'drawing') {
+          el.canvasProgressChip.hidden = false;
+          el.canvasProgressChip.textContent = pctText;
+        } else {
+          el.canvasProgressChip.hidden = true;
+        }
+      }
+
+      const mm = String(Math.floor(remainingSec / 60)).padStart(2, '0');
+      const ss = String(remainingSec % 60).padStart(2, '0');
+      el.drawTimerText.textContent = `${mm}:${ss}`;
+
+      const steps = el.phaseSteps.querySelectorAll('.phase-step');
+      steps.forEach((node, idx) => {
+        node.classList.remove('is-active', 'is-done');
+        if (phaseIndex >= 0) {
+          if (idx < phaseIndex || (engine.currentJob && engine.currentJob.status === 'celebrating')) {
+            node.classList.add('is-done');
+          } else if (idx === phaseIndex) {
+            node.classList.add('is-active');
+          }
+        }
+      });
+    }
+
+    function renderAllDom() {
+      renderHeaderTicker();
+      renderElevated();
+      renderEaselMeta();
+      renderQueue();
+      renderGallery();
+      renderProgressUI();
+    }
+
+    /* =========================================================================
+     * ABLY CLIENT (LIVE MODE — trang GitHub Pages)
+     * Thay WebSocket nội bộ bằng Ably subscribe qua @ably/pubsub-device
+     * 3.2.0 (global AblyPubSub). SDK cổ điển `ably` v2 bị tài khoản MAU
+     * pricing từ chối (lỗi 40168). Chỉ đổi đường nhận event — mọi logic
+     * game giữ nguyên. (y mẫu Câu Cá)
+     * ========================================================================= */
+
+    function getAblyConfig() {
+      // ably-config.js (key SUBSCRIBE-ONLY) dùng 2 biến toàn cục;
+      // đồng thời hỗ trợ dạng window.ABLY_CONFIG {key, channel} và param URL.
+      const fromFile = window.ABLY_CONFIG || {};
+      return {
+        key: params.get('ablyKey') || fromFile.key || window.ABLY_SUBSCRIBE_KEY || '',
+        channel: params.get('ablyChannel') || fromFile.channel || window.ABLY_CHANNEL || 've-tranh-avatar-live'
+      };
+    }
+
+    function parseAblyData(raw) {
+      if (raw && typeof raw === 'object') return raw;
+      if (typeof raw === 'string') {
+        try { return JSON.parse(raw); } catch { return null; }
+      }
+      return null;
+    }
+
+    // Chống trùng khi Ably replay sau reconnect (mỗi message có id duy nhất).
+    function seenAblyMsg(msg) {
+      if (!msg || !msg.id) return false;
+      if (seenMsgIds.has(msg.id)) return true;
+      seenMsgIds.add(msg.id);
+      if (seenMsgIds.size > 500) {
+        const first = seenMsgIds.values().next().value;
+        seenMsgIds.delete(first);
+      }
+      return false;
+    }
+
+    // Lọc event cũ hơn lúc tải trang − 10s (Ably có thể replay ~2 phút khi resume).
+    function isStaleAblyMsg(msg, data) {
+      const ts = Number((data && data.timestamp) || (msg && msg.timestamp) || 0);
+      return Boolean(ts) && ts < pageLoadTs - 10000;
+    }
+
+    function updateModePill(text, isLive) {
+      if (!el.modePill) return;
+      el.modePill.textContent = text;
+      el.modePill.classList.toggle('is-live', Boolean(isLive));
+    }
+
+    function onAblyComment(msg) {
+      if (seenAblyMsg(msg)) return;
+      const data = parseAblyData(msg.data);
+      if (!data || typeof data.text !== 'string') return;
+      if (isStaleAblyMsg(msg, data)) return;
+      engine.handleComment({ username: data.user || data.username || 'Khán giả', text: data.text, avatarUrl: data.avatar || null });
+    }
+
+    function onAblyLike(msg) {
+      if (seenAblyMsg(msg)) return;
+      const data = parseAblyData(msg.data);
+      if (!data) return;
+      if (isStaleAblyMsg(msg, data)) return;
+      engine.handleLike({ username: data.user || data.username || 'Khán giả', count: data.likeCount || 1 });
+    }
+
+    function onAblyGift(msg) {
+      if (seenAblyMsg(msg)) return;
+      const data = parseAblyData(msg.data);
+      if (!data || typeof data.giftName !== 'string') return;
+      if (isStaleAblyMsg(msg, data)) return;
+      engine.handleGift({
+        username: data.user || data.username || 'Khán giả',
+        giftId: data.giftId,
+        giftName: data.giftName,
+        diamonds: data.diamondCount || data.coins,
+        count: data.repeatCount || 1,
+        avatarUrl: data.avatar || null
+      });
+    }
+
+    function onAblyStatus(msg) {
+      const data = parseAblyData(msg.data);
+      if (!data) return;
+      if (data.connected) {
+        updateModePill(`LIVE @${data.username || liveUser}`, true);
+      } else if (data.message && String(data.message).indexOf('Đang kết nối') !== -1) {
+        updateModePill(`ĐANG KẾT NỐI @${data.username || liveUser}`, false);
+      } else if (ablyConnected) {
+        // Ably vẫn nối tốt, chỉ là chưa có live TikTok gắn vào — không phải
+        // "mất kết nối" (event vẫn chảy bình thường).
+        updateModePill(`CHỜ LIVE @${liveUser}`, false);
+      } else {
+        updateModePill(`MẤT KẾT NỐI @${liveUser}`, false);
+      }
+      if (data.message) {
+        engine.addCommentEntry({ username: 'TikTok LIVE', text: data.message, kind: 'style' });
+      }
+    }
+
+    // API test: nhận 1 message Ably đã parse {name, data, id, timestamp}.
+    function handleAblyMessage(msg) {
+      if (!msg || typeof msg !== 'object') return false;
+      if (msg.name === 'comment') { onAblyComment(msg); return true; }
+      if (msg.name === 'like') { onAblyLike(msg); return true; }
+      if (msg.name === 'gift') { onAblyGift(msg); return true; }
+      if (msg.name === 'status') { onAblyStatus(msg); return true; }
+      return false;
+    }
+
+    function connectAbly(username) {
+      if (typeof AblyPubSub === 'undefined' || typeof AblyPubSub.createClient !== 'function') {
+        updateModePill('KHÔNG TẢI ĐƯỢC ABLY SDK', false);
+        engine.addCommentEntry({ username: 'Hệ thống', text: 'Không tải được Ably SDK.', kind: 'chat' });
+        return;
+      }
+      const cfg = getAblyConfig();
+      if (!cfg.key) {
+        updateModePill('CHƯA CẤU HÌNH ABLY KEY', false);
+        engine.addCommentEntry({ username: 'Hệ thống', text: 'Chưa cấu hình Ably key.', kind: 'chat' });
+        return;
+      }
+
+      // Tài khoản MAU bắt buộc clientId trên device (không có thì 401).
+      const realtime = AblyPubSub.createClient({
+        key: cfg.key,
+        clientId: 'obs-' + Math.random().toString(36).slice(2, 8)
+      });
+      ablyClient = realtime;
+
+      realtime.connection.on('connected', () => {
+        ablyConnected = true;
+        // Nối lại Ably xong: về trạng thái chờ live ngay; event status
+        // (heartbeat ≤10s) sẽ sửa thành LIVE nếu live đã gắn.
+        updateModePill(`CHỜ LIVE @${username}`, false);
+      });
+      realtime.connection.on('disconnected', () => {
+        ablyConnected = false;
+        updateModePill(`MẤT KẾT NỐI @${username}`, false);
+      });
+      realtime.connection.on('suspended', () => {
+        ablyConnected = false;
+        updateModePill(`MẤT KẾT NỐI @${username}`, false);
+      });
+      realtime.connection.on('failed', (err) => {
+        ablyConnected = false;
+        updateModePill(`MẤT KẾT NỐI @${username}`, false);
+        console.error('[Ably] connection failed:', err && err.message ? err.message : err);
+      });
+
+      const channel = realtime.channels.get(cfg.channel);
+      ablyChannel = channel;
+
+      channel.on('attached', (change) => {
+        // Lần attach đầu resumed=false là bình thường. Attach lại sau mà
+        // resumed=false nghĩa là Ably không resume được — có thể đã miss
+        // vài event trong lúc rớt (hơn ~2 phút); game vẫn chạy tiếp.
+        if (ablyAttachedOnce && change && change.resumed === false) {
+          console.warn('[Ably] channel re-attached without resume — có thể thiếu vài event');
+        }
+        ablyAttachedOnce = true;
+      });
+      channel.on('failed', (err) => {
+        console.error('[Ably] channel failed:', err && err.message ? err.message : err);
+      });
+
+      channel.subscribe('comment', onAblyComment);
+      channel.subscribe('like', onAblyLike);
+      channel.subscribe('gift', onAblyGift);
+      channel.subscribe('status', onAblyStatus);
+    }
+
+    function connectLive(username) {
+      updateModePill(`CHỜ LIVE @${username}`, false);
+      engine.addCommentEntry({ username: 'Hệ thống', text: `Đang kết nối TikTok Live @${username}...`, kind: 'style' });
+      connectAbly(username);
+    }
+
+    function startGame() {
+      if (engine.running) {
+        engine.togglePause();
+        updateStartButton();
+        return;
+      }
+      engine.running = true;
+      engine.paused = false;
+      bgm.start();
+      updateStartButton();
+
+      if (liveUser) {
+        connectLive(liveUser);
+      } else {
+        demoBot.start();
+      }
+    }
+
+    function updateStartButton() {
+      if (!el.btnStart) return;
+      if (!engine.running) {
+        el.btnStart.textContent = '▶ Bắt đầu';
+        el.btnStart.classList.remove('is-running');
+      } else if (engine.paused) {
+        el.btnStart.textContent = '▶ Tiếp tục';
+        el.btnStart.classList.remove('is-running');
+      } else {
+        el.btnStart.textContent = '⏸ Tạm dừng';
+        el.btnStart.classList.add('is-running');
+      }
+    }
+
+    el.btnStart.addEventListener('click', startGame);
+
+    el.btnTts.addEventListener('click', () => {
+      mc.setEnabled(!mc.enabled);
+      el.btnTts.classList.toggle('active', mc.enabled);
+      el.btnTts.textContent = mc.enabled ? '🔊 MC' : '🔇 MC';
+    });
+
+    el.btnReplay.addEventListener('click', () => {
+      mc.replay();
+    });
+
+    el.btnMusic.addEventListener('click', () => {
+      bgm.init();
+      bgm.setEnabled(!bgm.enabled);
+      el.btnMusic.classList.toggle('active', bgm.enabled);
+      el.btnMusic.textContent = bgm.enabled ? '🎵' : '🔇';
+    });
+
+    el.musicVolume.addEventListener('input', (e) => {
+      bgm.setVolume(e.target.value);
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!engine.running) {
+          startGame();
+        } else {
+          engine.togglePause();
+          updateStartButton();
+        }
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        mc.replay();
+      }
+    });
+
+    let lastTs = performance.now();
+    function frameLoop(now) {
+      const dtMs = Math.min(100, now - lastTs);
+      lastTs = now;
+      const timeSec = now / 1000;
+
+      if (engine.running && !engine.paused) {
+        engine.tick(dtMs);
+      }
+
+      if (engine.currentJob) {
+        const { progress } = engine.getDrawingProgress();
+        portraitRenderer.renderPortrait(engine.currentJob, progress, timeSec);
+        renderProgressUI();
+      } else {
+        portraitRenderer.renderIdle(timeSec);
+      }
+
+      const artistState = engine.currentJob
+        ? engine.currentJob.status === 'celebrating'
+          ? 'celebrating'
+          : engine.paused
+            ? 'idle'
+            : 'drawing'
+        : 'idle';
+      artistRenderer.render(timeSec, artistState);
+      confetti.updateAndDraw(dtMs / 1000);
+
+      requestAnimationFrame(frameLoop);
+    }
+
+    renderAllDom();
+    requestAnimationFrame(frameLoop);
+
+    if (autoStart) {
+      startGame();
+    }
+
+    const api = {
+      engine,
+      GIFT_CATALOG,
+      ART_STYLES,
+      ALL_STYLE_IDS,
+      FRAME_TIERS,
+      startGame,
+      demoBot,
+      mc,
+      bgm,
+      renderAllDom,
+      handleAblyMessage
+    };
+    window.AvatarArtGame = api;
+    return api;
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      GIFT_CATALOG,
+      ART_STYLES,
+      ALL_STYLE_IDS,
+      FRAME_TIERS,
+      DEFAULT_CONFIG,
+      GameEngine,
+      isRoseGift,
+      frameForDiamonds,
+      generateAvatarTraits,
+      resolveGift
+    };
+  }
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initBrowserApp);
+    } else {
+      initBrowserApp();
+    }
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : this);
