@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vẽ Tranh Avatar LIVE — Phòng Tranh Ông Ba</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23472916'/><text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle' font-size='38'>🎨</text></svg>" />
+  <meta name="description" content="Vẽ Tranh Avatar LIVE — Phòng Tranh Ông Ba: game TikTok Live vẽ chân dung 5 phong cách theo quà tặng với họa sĩ đứng vẽ, giá vẽ giữa phòng và hàng người đứng xếp hàng." />
+  <script>
+    (function () {
+      try {
+        var q = window.location.search || '';
+        var h = window.location.hash || '';
+        var pq = '';
+        try {
+          if (window.parent && window.parent !== window && window.parent.location) {
+            pq = window.parent.location.search || '';
+          }
+        } catch (_e) {}
+        if (/[?&]clean=1(?:&|$)/.test(q) || /clean=1/.test(h) || /[?&]clean=1(?:&|$)/.test(pq)) {
+          document.documentElement.classList.add('clean-mode');
+        }
+      } catch (_err) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="viewport-shell" id="viewportShell">
+    <main class="stage" id="stage" aria-label="Vẽ Tranh Avatar LIVE — Phòng Tranh Ông Ba">
+      <!-- Floating hearts overlay -->
+      <div class="hearts-layer" id="heartsLayer" aria-hidden="true"></div>
+
+      <!-- 1. COMPACT 2-LINE HEADER (No separate comment/leaderboard banner) -->
+      <header class="header" id="headerBar">
+        <div class="header-row-1">
+          <div class="header-brand">
+            <span class="live-badge" id="liveBadge"><span class="live-dot"></span> LIVE</span>
+            <span class="header-sep" aria-hidden="true">|</span>
+            <h1 class="brand-title">PHÒNG TRANH ÔNG BA</h1>
+            <span class="mode-pill" id="modePill">DEMO</span>
+          </div>
+
+          <!-- ALL host buttons strictly inside #hostControls (hidden completely on ?clean=1) -->
+          <div class="host-controls" id="hostControls" aria-label="Điều khiển Host">
+            <button type="button" class="btn btn-primary" id="btnStart">▶ Bắt đầu</button>
+            <button type="button" class="btn btn-ghost active" id="btnMusic" title="Bật/tắt nhạc nền">🎵</button>
+            <label class="volume-wrap" for="musicVolume" title="Âm lượng nhạc nền">
+              <input type="range" id="musicVolume" min="0" max="100" value="42" aria-label="Âm lượng nhạc nền" />
+            </label>
+            <button type="button" class="btn btn-ghost active" id="btnTts" title="Bật/tắt giọng MC tiếng Việt">🔊 MC</button>
+            <button type="button" class="btn btn-ghost" id="btnReplay" title="Đọc lại lời MC gần nhất (Phím S)">🔁 Đọc lại (S)</button>
+          </div>
+        </div>
+
+        <div class="header-row-2" id="headerTicker" aria-live="polite">
+          <span class="ticker-part" id="drawnCountStat">Đã vẽ 0 bức</span>
+          <span class="ticker-dot" aria-hidden="true">•</span>
+          <span class="ticker-part ticker-top" id="topDonorStat">👑 Top tặng quà: Chưa có</span>
+          <span class="ticker-dot" aria-hidden="true">•</span>
+          <span class="ticker-part ticker-comment" id="latestCommentStat">💬 Tặng quà bất kỳ để đặt vẽ chân dung!</span>
+        </div>
+      </header>
+
+      <!-- 2. SLIM 1-LINE VIP ELEVATED STRIP -->
+      <section class="elevated-line" id="elevatedBar" aria-label="Tranh đang treo trên cao" aria-live="polite">
+        <span class="elevated-line-text" id="elevatedLineText">🌟 Treo cao: Quà ≥10💎 treo VIP 10s (+10s mỗi lần tặng lặp)</span>
+      </section>
+
+      <!-- 3. MAIN ART STUDIO SCENE (Hero centerpiece: Standing Artist | Center Easel + % | Standing Poser | 1-Row Standing Queue) -->
+      <section class="studio-scene" id="studioMain" aria-label="Cảnh phòng vẽ trực tiếp: Họa sĩ đứng vẽ, giá vẽ giữa phòng và hàng người đứng xếp hàng">
+        <canvas class="confetti-canvas" id="confettiCanvas" width="1040" height="1220" aria-hidden="true"></canvas>
+
+        <!-- Minimal Top Subject Status -->
+        <div class="studio-top-strip">
+          <div class="subject-meta">
+            <span class="subject-tag" id="subjectStatusTag">SẴN SÀNG</span>
+            <span class="subject-name" id="currentSubjectName">Phòng Tranh Ông Ba sẵn sàng!</span>
+          </div>
+          <div class="subject-badges">
+            <span class="pill-style" id="currentStyleBadge">🎨 5 Phong Cách</span>
+            <span class="pill-frame frame-pill-wood" id="currentFrameBadge">🪵 Khung Gỗ</span>
+          </div>
+        </div>
+
+        <!-- Real Art Studio Floor: 1. Full-body Standing Artist | 2. Center Easel + Large Portrait | 3. Active Standing Poser closest to easel -->
+        <div class="studio-floor-stage" id="studioFloorStage">
+          <div class="studio-lamp lamp-left" aria-hidden="true"></div>
+          <div class="studio-lamp lamp-center" aria-hidden="true"></div>
+          <div class="studio-lamp lamp-right" aria-hidden="true"></div>
+          <div class="studio-floor-boards" aria-hidden="true"></div>
+
+          <!-- 1. FULL-BODY STANDING ARTIST -->
+          <div class="artist-zone" id="artistZone">
+            <div class="mc-bubble" id="mcBubble">
+              <span class="mc-speaker">Ông Ba:</span>
+              <span class="mc-text" id="mcText">Chào các cháu đến Phòng Tranh Ông Ba! Tặng món quà bất kỳ để Ông đứng vẽ chân dung tặng nhé!</span>
+            </div>
+            <div class="artist-figure-wrap">
+              <canvas id="artistCanvas" width="246" height="396" aria-label="Họa sĩ Ông Ba đứng toàn thân đội mũ beret mặc tạp dề cầm cọ và bảng màu"></canvas>
+              <div class="artist-floor-tag">
+                <span class="artist-name">Họa sĩ Ông Ba</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. CENTER STANDING EASEL + LARGE PORTRAIT CANVAS WITH % -->
+          <div class="easel-zone" id="easelZone">
+            <div class="easel-rig" id="easelRig">
+              <div class="easel-crown" aria-hidden="true"></div>
+              <div class="portrait-frame frame-wood" id="easelFrame">
+                <span class="frame-corner tl" aria-hidden="true"></span>
+                <span class="frame-corner tr" aria-hidden="true"></span>
+                <span class="frame-corner bl" aria-hidden="true"></span>
+                <span class="frame-corner br" aria-hidden="true"></span>
+                <div class="canvas-mat">
+                  <canvas id="portraitCanvas" width="420" height="490" aria-label="Bức tranh chân dung đang vẽ trên giá vẽ"></canvas>
+                  <div class="canvas-progress-chip" id="canvasProgressChip" hidden>0%</div>
+                  <div class="complete-overlay" id="completeOverlay" hidden>
+                    <div class="complete-badge">🎉 Hoàn thành!</div>
+                    <div class="complete-recipient" id="completeRecipient">Chân dung tặng bạn</div>
+                    <div class="complete-meta" id="completeMeta">Biếm họa · Khung Gỗ</div>
+                  </div>
+                  <div class="pause-overlay" id="pauseOverlay" hidden>
+                    <div class="pause-pill">⏸ TẠM DỪNG</div>
+                    <div class="pause-hint">Nhấn phím Space để tiếp tục</div>
+                  </div>
+                </div>
+              </div>
+              <div class="easel-ledge" aria-hidden="true">
+                <span class="ledge-paint p1"></span>
+                <span class="ledge-paint p2"></span>
+                <span class="ledge-paint p3"></span>
+                <span class="ledge-paint p4"></span>
+              </div>
+              <div class="easel-legs" aria-hidden="true">
+                <span class="easel-leg leg-left"></span>
+                <span class="easel-leg leg-mid"></span>
+                <span class="easel-leg leg-right"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3A. ACTIVE STANDING POSER (Closest to Easel!) -->
+          <div class="poser-zone" id="poserZone" aria-label="Người đang được vẽ đứng gần giá vẽ nhất">
+            <div class="poser-stage-card" id="queueActiveWrap">
+              <div class="poser-empty">
+                <div class="poser-empty-icon">🧍</div>
+                <div class="poser-empty-text">Vị trí làm mẫu<br />Tặng quà để lên đứng vẽ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4-Phase Drawing Progress Bar (Single canonical % synced with canvas chip) -->
+        <div class="progress-panel">
+          <div class="phase-steps" id="phaseSteps">
+            <span class="phase-step" data-phase="0">1. Phác nét</span>
+            <span class="phase-step" data-phase="1">2. Chi tiết</span>
+            <span class="phase-step" data-phase="2">3. Tô màu</span>
+            <span class="phase-step" data-phase="3">4. Đóng khung</span>
+          </div>
+          <div class="progress-track-row">
+            <span class="progress-pct" id="drawPercentText">0%</span>
+            <div class="progress-track">
+              <div class="progress-fill" id="drawProgressFill" style="width: 0%"></div>
+            </div>
+            <span class="progress-timer" id="drawTimerText">00:45</span>
+          </div>
+        </div>
+
+        <!-- 3B. COMPACT 1-ROW STANDING QUEUE (# + Standing Character + Name only; click for gift/style popover) -->
+        <div class="standing-queue-zone" id="queuePanel" aria-label="Hàng người đứng xếp hàng chờ tới lượt">
+          <div class="standing-queue-bar">
+            <span class="sq-title">🧍 Xếp hàng chờ vẽ</span>
+            <div class="sq-meta-group">
+              <span class="queue-overflow-inline" id="queueOverflow" hidden></span>
+              <span class="queue-count-badge" id="queueCountBadge">0 đang đợi</span>
+            </div>
+          </div>
+          <div class="standing-queue-line" id="queueList"></div>
+
+          <!-- Compact Popover shown when clicking a waiting person -->
+          <div class="queue-person-popover" id="queuePersonPopover" hidden role="dialog" aria-label="Chi tiết người đang xếp hàng"></div>
+        </div>
+      </section>
+
+      <!-- 4. STYLE SELECTOR: 5 CHIPS ON 1 ROW (Default hides 26-gift grid; click a chip to view its gifts) -->
+      <section class="style-chips-section" id="styleChipsSection" aria-label="Chọn phong cách vẽ theo quà tặng">
+        <div class="style-gift-popover" id="styleGiftPopover" hidden role="dialog" aria-label="Danh sách quà theo phong cách"></div>
+        <div class="style-chips-row" id="styleChipsRow"></div>
+      </section>
+
+      <!-- 5. SLIM HORIZONTAL GALLERY STRIP (Strictly 5 newest completed portraits) -->
+      <section class="gallery-section" id="gallerySection" aria-label="5 bức tranh mới nhất">
+        <div class="gallery-strip-head">
+          <span class="gallery-strip-title">🖼️ Tranh mới nhất</span>
+          <span class="gallery-strip-count" id="galleryCounter">0/5</span>
+        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </section>
+
+      <!-- 6. MINIMAL 1-LINE BOTTOM NOTE -->
+      <footer class="bottom-note" id="bottomFooter">
+        Tặng quà để chọn phong cách vẽ 🎁
+      </footer>
+    </main>
+  </div>
+
+  <!-- LIVE MODE (GitHub Pages): Ably subscribe — y mẫu Câu Cá.
+       Dùng @ably/pubsub-device 3.x: tài khoản Ably MAU pricing từ chối SDK
+       cổ điển `ably` v2 (lỗi 40168). Bundle expose global `AblyPubSub`.
+       ably-config.js CHỈ chứa key subscribe-only (public theo thiết kế) —
+       KHÔNG BAO GIỜ nhúng key publish vào đây. -->
+  <script src="https://cdn.jsdelivr.net/npm/@ably/pubsub-device@3.2.0/dist/cdn/ably.min.js"></script>
+  <script src="ably-config.js"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>
